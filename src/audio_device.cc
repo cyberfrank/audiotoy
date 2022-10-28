@@ -37,10 +37,9 @@ void AudioDevice::Setup(void *context, int sampleRate, int outputBufferSize)
             DSBUFFERDESC bufferDesc = {};
             bufferDesc.dwSize = sizeof(bufferDesc);
             bufferDesc.dwFlags = DSBCAPS_PRIMARYBUFFER;
-
-            LPDIRECTSOUNDBUFFER primaryBuffer;
-            directSound->CreateSoundBuffer(&bufferDesc, &primaryBuffer, 0);
-            primaryBuffer->SetFormat(&waveFormat);
+            bufferDesc.lpwfxFormat = &waveFormat;
+            
+            directSound->CreateSoundBuffer(&bufferDesc, &((LPDIRECTSOUNDBUFFER)primaryBuffer), 0);
         }
 
         DSBUFFERDESC bufferDesc = {};
@@ -48,12 +47,11 @@ void AudioDevice::Setup(void *context, int sampleRate, int outputBufferSize)
         bufferDesc.dwFlags = DSBCAPS_GETCURRENTPOSITION2;
         bufferDesc.dwBufferBytes = secondaryBufferSize;
         bufferDesc.lpwfxFormat = &waveFormat;
-        
-        globalSecondaryBuffer = malloc(sizeof(LPDIRECTSOUNDBUFFER));
-        directSound->CreateSoundBuffer(&bufferDesc, (LPDIRECTSOUNDBUFFER *)globalSecondaryBuffer, 0);
 
-        auto secondaryBuffer = *(LPDIRECTSOUNDBUFFER *)globalSecondaryBuffer;
-        secondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
+        directSound->CreateSoundBuffer(&bufferDesc, &((LPDIRECTSOUNDBUFFER)secondaryBuffer), 0);
+
+        auto buffer = (LPDIRECTSOUNDBUFFER)secondaryBuffer;
+        buffer->Play(0, 0, DSBPLAY_LOOPING);
     }
 }
 
@@ -64,8 +62,8 @@ void AudioDevice::ClearBuffer()
     VOID *region2;
     DWORD region2Size;
 
-    auto secondaryBuffer = *(LPDIRECTSOUNDBUFFER *)globalSecondaryBuffer;
-    if (SUCCEEDED(secondaryBuffer->Lock(0, secondaryBufferSize, 
+    auto buffer = (LPDIRECTSOUNDBUFFER)secondaryBuffer;
+    if (SUCCEEDED(buffer->Lock(0, secondaryBufferSize, 
         &region1, &region1Size, &region2, &region2Size, 0)))
     {
         uint8_t *dst = (uint8_t *)region1;
@@ -78,7 +76,7 @@ void AudioDevice::ClearBuffer()
             *dst++ = 0;
         }
 
-        secondaryBuffer->Unlock(region1, region1Size, region2, region2Size);
+        buffer->Unlock(region1, region1Size, region2, region2Size);
     }
 }
 
@@ -92,8 +90,8 @@ void AudioDevice::FillBuffer(float *samples, uint32_t numSamples)
     DWORD offset = (runningSampleIndex * bytesPerSample) % secondaryBufferSize;
     DWORD bytes = numSamples * bytesPerSample;
 
-    auto secondaryBuffer = *(LPDIRECTSOUNDBUFFER *)globalSecondaryBuffer;
-    if (SUCCEEDED(secondaryBuffer->Lock(offset, bytes,
+    auto buffer = (LPDIRECTSOUNDBUFFER)secondaryBuffer;
+    if (SUCCEEDED(buffer->Lock(offset, bytes,
         &region1, &region1Size, &region2, &region2Size, 0)))
     {
         uint64_t region1SampleCount = region1Size / bytesPerSample;
@@ -114,18 +112,18 @@ void AudioDevice::FillBuffer(float *samples, uint32_t numSamples)
         runningSampleIndex += region1SampleCount;
         runningSampleIndex += region2SampleCount;
 
-        secondaryBuffer->Unlock(region1, region1Size, region2, region2Size);
+        buffer->Unlock(region1, region1Size, region2, region2Size);
     }
 }
 
 uint32_t AudioDevice::RemainingSamples()
 {
     uint32_t bytes = 0;
-    auto secondaryBuffer = *(LPDIRECTSOUNDBUFFER *)globalSecondaryBuffer;
-    
     DWORD playCursor = 0;
     DWORD writeCursor = 0;
-    if (SUCCEEDED(secondaryBuffer->GetCurrentPosition(&playCursor, &writeCursor))) {
+    
+    auto buffer = (LPDIRECTSOUNDBUFFER)secondaryBuffer;
+    if (SUCCEEDED(buffer->GetCurrentPosition(&playCursor, &writeCursor))) {
         DWORD offset = (runningSampleIndex * bytesPerSample) % secondaryBufferSize;
         DWORD target = (playCursor + (latencySampleCount * bytesPerSample)) % secondaryBufferSize;
 

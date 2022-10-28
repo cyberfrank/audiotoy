@@ -12,5 +12,6 @@ struct AudioDevice
     int latencySampleCount;
     int secondaryBufferSize;
     uint64_t runningSampleIndex;
-    void *globalSecondaryBuffer;
+    void *primaryBuffer;
+    void *secondaryBuffer;
 };
