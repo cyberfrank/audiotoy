@@ -1,22 +1,16 @@
 #include <stdint.h>
 
-class AudioOutput
+struct AudioDevice
 {
-public:
+    void Setup(void *context, int sampleRate, int outputBufferSize);
+    void ClearBuffer();
+    void FillBuffer(float *samples, uint32_t numSamples);
+    uint32_t RemainingSamples();
+
     int samplesPerSecond;
     int bytesPerSample;
-    uint64_t runningSampleIndex;
     int latencySampleCount;
-};
-
-class AudioDevice
-{
-public:
-    void Setup(void *context, AudioOutput *audioOut);
-    void ClearBuffer();
-    void FillBuffer(int16_t *samples, uint32_t num_samples);
-    uint32_t RemainingSamples();
-private:
-    AudioOutput *output;
+    int secondaryBufferSize;
+    uint64_t runningSampleIndex;
     void *globalSecondaryBuffer;
 };

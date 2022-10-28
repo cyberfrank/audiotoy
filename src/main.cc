@@ -55,18 +55,12 @@ int main()
     bool running = true;
 
     HWND hwnd = Win32CreateWindow(800, 600);
-
-    AudioOutput audioOut = {};
-    audioOut.samplesPerSecond = 44100;
-    audioOut.bytesPerSample = sizeof(int16_t) * 2;
-    audioOut.latencySampleCount = 4096;
     
     AudioDevice *device = &audioDeviceInst;
-    device->Setup(hwnd, &audioOut);
+    device->Setup(hwnd, 96000, 4096);
     device->ClearBuffer();
     
-    uint64_t size = audioOut.samplesPerSecond * audioOut.bytesPerSample;
-    int16_t *samples = (int16_t *)malloc(size);
+    float *samples = (float *)malloc(device->samplesPerSecond * sizeof(float) * 2);
     float t = 0;
 
     while (running) {
@@ -79,18 +73,18 @@ int main()
             DispatchMessageA(&msg);
         }
 
-        int samplesPerSecond = audioOut.samplesPerSecond;
+        int samplesPerSecond = device->samplesPerSecond;
         int sampleCount = device->RemainingSamples();
 
         // Test tone
-        int toneHz = 800;
+        int toneHz = 440;
         float wavePeriod = (float)samplesPerSecond / toneHz;
-        float volume = 3000;
-        int16_t *p = samples;
+        float volume = 0.5f;
+        float *p = samples;
         for (int i = 0; i < sampleCount; ++i) {
             float value = sinf(t) * volume;
-            *p++ = (int16_t)value;
-            *p++ = (int16_t)value;
+            *p++ = value;
+            *p++ = value;
             t += 2.0f * PI * 1.0f / wavePeriod;
         }
 
